@@ -1,15 +1,33 @@
-# Semantic Caching Service
+# Enhanced Semantic Caching Service
 
-A Go-based semantic caching service that uses Redis for storage and OpenAI embeddings for semantic similarity matching. Instead of relying on exact key matches, this cache intelligently retrieves cached results based on semantic meaning.
+A high-performance Go-based semantic caching service that uses Redis for storage and embedding models for semantic similarity matching. Instead of relying on exact key matches, this cache intelligently retrieves cached results based on semantic meaning with advanced features for production use.
 
-## Features
+## 🚀 Features
 
-- **Semantic Matching**: Uses OpenAI embeddings to find semantically similar cached entries
-- **Redis Backend**: Leverages Redis for fast, persistent storage
+### Core Functionality
+- **Semantic Matching**: Uses embedding models to find semantically similar cached entries
+- **Redis Backend**: Leverages Redis for fast, persistent storage with connection pooling
 - **Configurable Similarity Threshold**: Adjust how strict semantic matching should be
-- **TTL Support**: Automatic expiration of cached entries
-- **Cache Management**: Full CRUD operations and statistics
-- **Performance Optimization**: Reduces LLM API calls by reusing semantically similar responses
+- **TTL Support**: Automatic expiration of cached entries with background cleanup
+
+### Advanced Features
+- **Batch Operations**: Efficient bulk set/get operations for improved performance
+- **Embedding Caching**: In-memory cache for frequently used embeddings
+- **Access Statistics**: Track usage patterns and cache hit rates
+- **Rich Metadata**: Store and search with custom metadata
+- **Background Cleanup**: Automatic removal of expired entries
+- **Comprehensive Metrics**: Detailed performance and usage statistics
+- **Enhanced Search**: Multi-result semantic search with scoring
+- **LRU Support**: Optional Least Recently Used eviction policy
+
+### Production Ready
+- **Docker Support**: Easy deployment with Docker and Docker Compose
+- **Health Checks**: Built-in health monitoring endpoints
+- **Structured Logging**: Comprehensive logging with request tracking
+- **Error Handling**: Robust error handling with retry logic and circuit breaker patterns
+- **Performance Monitoring**: Real-time metrics and statistics
+- **Resilience**: Circuit breaker protection against cascading failures
+- **Graceful Degradation**: Continues operating even when external services fail
 
 ## How It Works
 
@@ -82,11 +100,35 @@ func main() {
 
 ### API Methods
 
+#### Core Operations
 - `Set(ctx, key, value, ttl)`: Store a key-value pair with TTL
+- `SetWithMetadata(ctx, key, value, ttl, metadata)`: Store with custom metadata
 - `Get(ctx, key)`: Retrieve value by semantic similarity
 - `Delete(ctx, key)`: Remove a specific cache entry
 - `Clear(ctx)`: Remove all cache entries
-- `Stats(ctx)`: Get cache statistics
+
+#### Batch Operations
+- `BatchSet(ctx, entries)`: Store multiple entries efficiently
+- `BatchGet(ctx, keys)`: Retrieve multiple values
+
+#### Advanced Operations
+- `Search(ctx, query, limit, threshold)`: Multi-result semantic search
+- `GetMetrics(ctx)`: Get detailed performance metrics
+- `Stats(ctx)`: Get basic cache statistics
+
+### HTTP API Endpoints
+
+#### Core Endpoints
+- `POST /cache/get` - Retrieve cached values
+- `POST /cache/set` - Set cache values
+- `POST /cache/delete` - Delete cache values
+
+#### Enhanced Endpoints
+- `POST /cache/batch/set` - Set multiple cache values
+- `POST /cache/batch/get` - Get multiple cache values
+- `POST /cache/search` - Search with semantic similarity
+- `GET /cache/metrics` - Get cache metrics and statistics
+- `GET /health` - Health check
 
 ## Use Cases
 
@@ -116,6 +158,74 @@ cache.Set(ctx, "How to optimize database queries?", optimizationGuide, time.Hour
 // Matches queries like "database performance" or "query optimization"
 ```
 
+### Batch Operations
+```go
+// Efficiently store multiple entries
+entries := []BatchEntry{
+    {
+        Key:   "What is AI?",
+        Value: "AI is artificial intelligence...",
+        TTL:   3600,
+        Metadata: map[string]interface{}{
+            "category": "AI",
+            "difficulty": "beginner",
+        },
+    },
+    {
+        Key:   "How does ML work?",
+        Value: "Machine learning works by...",
+        TTL:   3600,
+        Metadata: map[string]interface{}{
+            "category": "ML",
+            "difficulty": "intermediate",
+        },
+    },
+}
+
+response, err := cache.BatchSet(ctx, entries)
+```
+
+### Enhanced Search
+```go
+// Search with custom parameters
+results, err := cache.Search(ctx, "artificial intelligence", 5, 0.8)
+for _, result := range results.Results {
+    fmt.Printf("Score: %.3f - %s\n", result.Score, result.Key)
+    fmt.Printf("Metadata: %+v\n", result.Metadata)
+}
+```
+
+### Performance Monitoring
+```go
+// Get detailed metrics
+metrics, err := cache.GetMetrics(ctx)
+fmt.Printf("Hit Rate: %.2f%%\n", metrics.HitRate*100)
+fmt.Printf("Average Response Time: %v\n", metrics.AverageResponseTime)
+fmt.Printf("Total Entries: %d\n", metrics.TotalEntries)
+```
+
+### Error Handling and Resilience
+```go
+// The cache automatically handles errors with retry logic and circuit breakers
+// Check for specific error types
+value, found, err := cache.Get(ctx, "query")
+if err != nil {
+    if cacheErr, ok := err.(*CacheError); ok {
+        switch cacheErr.Type {
+        case ErrorTypeCircuitBreaker:
+            // Embedding service is down, use fallback
+            fmt.Println("Using fallback response")
+        case ErrorTypeValidation:
+            // Invalid input, don't retry
+            fmt.Println("Invalid query format")
+        case ErrorTypeEmbedding:
+            // Embedding service error, will retry automatically
+            fmt.Println("Embedding service temporarily unavailable")
+        }
+    }
+}
+```
+
 ## Performance Benefits
 
 - **Reduced API Costs**: Fewer calls to expensive LLM APIs
@@ -129,14 +239,75 @@ cache.Set(ctx, "How to optimize database queries?", optimizationGuide, time.Hour
 - **Balanced** (moderate matches): Threshold = 0.8-0.85
 - **High Recall** (more matches): Threshold = 0.7-0.8
 
-## Running the Demo
+## Quick Start
+
+### Using Docker Compose (Recommended)
 
 ```bash
-# Set your OpenAI API key
-export OPENAI_API_KEY="your-key-here"
+# Clone the repository
+git clone <repository-url>
+cd semantic-caching
 
-# Run the example
-go run example/main.go
+# Start all services (Redis, Ollama, Semantic Cache)
+docker-compose up -d
+
+# Wait for services to be ready
+docker-compose logs -f
+
+# Test the service
+curl http://localhost:8080/health
+```
+
+### Manual Setup
+
+```bash
+# Install dependencies
+go mod tidy
+
+# Start Redis
+redis-server
+
+# Start Ollama (for embeddings)
+ollama serve
+
+# Run the service
+go run main.go
+
+# Run the enhanced demo
+go run example/enhanced_demo.go
+```
+
+### Configuration
+
+The service can be configured via environment variables or the `config.yaml` file:
+
+```yaml
+server:
+  port: ":8080"
+
+redis:
+  addr: "localhost:6379"
+  db: 0
+
+cache:
+  threshold: 0.8
+  max_cache_size: 10000
+  cleanup_interval: "1h"
+
+embedding:
+  url: "http://localhost:11434/api/embeddings"
+  model: "nomic-embed-text"
+
+# Error handling and resilience
+error_handling:
+  max_retries: 3
+  retry_base_delay: "100ms"
+  retry_max_delay: "5s"
+
+# Circuit breaker configuration
+circuit_breaker:
+  timeout: "1m"
+  max_failures: 5
 ```
 
 ## Architecture
@@ -153,7 +324,80 @@ go run example/main.go
                        └──────────────────┘
 ```
 
-The service acts as an intelligent layer between your application and Redis, using OpenAI's embedding API to enable semantic search capabilities.
+The service acts as an intelligent layer between your application and Redis, using embedding models to enable semantic search capabilities.
+
+## Testing
+
+### Run Tests
+```bash
+# Run all tests
+go test -v
+
+# Run tests with coverage
+go test -v -cover
+
+# Run benchmarks
+go test -bench=.
+
+# Run specific test
+go test -v -run TestEnhancedSemanticCache
+```
+
+### Test Requirements
+- Redis server running on localhost:6379
+- Different Redis databases are used for different test suites to avoid conflicts
+
+### Run Error Handling Tests
+```bash
+# Test circuit breaker functionality
+go test -v -run TestCircuitBreaker
+
+# Test retry logic
+go test -v -run TestRetryWithBackoff
+
+# Test error handling integration
+go test -v -run TestErrorHandlingInOperations
+
+# Test circuit breaker integration
+go test -v -run TestCircuitBreakerIntegration
+
+# Run all error handling tests
+go test -v -run TestError
+```
+
+## Development
+
+### Project Structure
+```
+semantic-caching/
+├── main.go                 # Main application code
+├── main_enhanced_test.go   # Enhanced test suite
+├── error_handling_test.go  # Error handling and resilience tests
+├── example/
+│   ├── main.go            # Basic example
+│   └── enhanced_demo.go   # Enhanced features demo
+├── config.yaml            # Configuration file
+├── Dockerfile             # Docker configuration
+├── docker-compose.yml     # Docker Compose setup
+└── README.md              # This file
+```
+
+### Adding New Features
+1. Add new types and methods to `main.go`
+2. Add corresponding HTTP handlers
+3. Update tests in `main_enhanced_test.go`
+4. Update documentation and examples
+5. Test with Docker Compose setup
+
+### Performance Considerations
+- Embedding cache reduces API calls for repeated queries
+- Batch operations improve throughput for bulk operations
+- Background cleanup prevents memory bloat
+- Connection pooling optimizes Redis performance
+- Metrics help identify performance bottlenecks
+- Circuit breaker prevents cascading failures
+- Retry logic with exponential backoff handles transient failures
+- Error handling provides graceful degradation
 
 ## License
 
