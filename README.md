@@ -1,4 +1,4 @@
-# Enhanced Semantic Caching Service
+#Semantic Caching Service using Redis
 
 A high-performance Go-based semantic caching service that uses Redis for storage and embedding models for semantic similarity matching. Instead of relying on exact key matches, this cache intelligently retrieves cached results based on semantic meaning with advanced features for production use.
 
